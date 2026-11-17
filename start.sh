@@ -31,7 +31,6 @@ gosu remote x11vnc -display :1 -rfbauth /home/remote/.vnc/passwd \
   -forever -shared -localhost -rfbport 5900 -xkb -noxrecord -noxfixes -noxdamage >/tmp/x11vnc.log 2>&1 &
 VNC_PID=$!
 
-# noVNC/websockify e a API de tarefas ficam atrás do Nginx.
 websockify --web=/usr/share/novnc 127.0.0.1:6080 localhost:5900 >/tmp/websockify.log 2>&1 &
 WEB_PID=$!
 python3 /usr/local/bin/remote-api.py >/tmp/remote-api.log 2>&1 &
@@ -39,10 +38,9 @@ API_PID=$!
 nginx -g 'daemon off;' >/tmp/nginx.log 2>&1 &
 NGINX_PID=$!
 
-# O Chromium não está disponível nesta imagem; use Firefox ESR diretamente.
-gosu remote env DISPLAY=:1 HOME=/home/remote firefox-esr --new-window https://www.youtube.com/ >/tmp/firefox.log 2>&1 &
-BROWSER_PID=$!
-echo "Desktop, Firefox e API de tarefas iniciados."
+# O navegador não inicia automaticamente para evitar estouro de memória no container.
+# Ele pode ser aberto depois pela sessão XFCE quando necessário.
+echo "Desktop remoto e API de tarefas iniciados; navegador aguardando abertura manual."
 
 while kill -0 "$NGINX_PID" 2>/dev/null && kill -0 "$XVFB_PID" 2>/dev/null && kill -0 "$API_PID" 2>/dev/null; do
   sleep 5
