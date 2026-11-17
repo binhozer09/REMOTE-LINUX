@@ -35,7 +35,7 @@ websockify --web=/usr/share/novnc 127.0.0.1:6080 localhost:5900 >/tmp/websockify
 WEB_PID=$!
 # Abre o YouTube automaticamente no desktop remoto. Defina YOUTUBE_URL no Railway
 # para escolher o vídeo/rádio; sem ela, abre a página inicial do YouTube.
-YOUTUBE_URL="${YOUTUBE_URL:-https://www.youtube.com/}"
+YOUTUBE_URL="${YOUTUBE_URL:-https://youtu.be/bWO1FNUTIao?is=IHQ1W9LWAd36Sf23}"
 mkdir -p /home/remote/.config/chromium /home/remote/Downloads
 chown -R remote:remote /home/remote/.config/chromium /home/remote/Downloads
 gosu remote chromium \
