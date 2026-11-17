@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && mkdir -p /home/remote/.vnc /home/remote/Desktop \
     && chown -R remote:remote /home/remote
 
+COPY auto-refresh/ /opt/auto-refresh/
 COPY start.sh /usr/local/bin/start-remote
 RUN chmod +x /usr/local/bin/start-remote
 
