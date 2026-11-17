@@ -62,7 +62,7 @@ def download_official():
                 strings = re.findall(r'''["']([^"']*(?:\.apk|download|package|android)[^"']*)["']''', js, re.I)
                 for value in strings[:100]:
                     add_candidate(value, script_url)
-                patterns = [r"\\beo\\s*=", r"baseURL", r"axios\\.create", r"api[./]", r"download_link", r"apk_link", r"config\\s*:"]
+                patterns = [r"\beo\s*=", r"baseURL", r"axios\.create", r"api[./]", r"download_link", r"apk_link", r"config\s*:"]
                 for pattern in patterns:
                     for match in list(re.finditer(pattern, js, re.I))[:5]:
                         script_findings.append({"script": script_url, "pattern": pattern, "match": js[max(0, match.start()-180):match.end()+260]})
