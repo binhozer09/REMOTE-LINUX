@@ -38,12 +38,21 @@ API_PID=$!
 nginx -g 'daemon off;' >/tmp/nginx.log 2>&1 &
 NGINX_PID=$!
 
-# O navegador não inicia automaticamente para evitar estouro de memória no container.
-# Ele pode ser aberto depois pela sessão XFCE quando necessário.
 echo "Desktop remoto e API de tarefas iniciados; navegador aguardando abertura manual."
 
-while kill -0 "$NGINX_PID" 2>/dev/null && kill -0 "$XVFB_PID" 2>/dev/null && kill -0 "$API_PID" 2>/dev/null; do
+while true; do
   sleep 5
+  FAILED=""
+  for item in "nginx:$NGINX_PID" "xvfb:$XVFB_PID" "api:$API_PID" "websockify:$WEB_PID" "x11vnc:$VNC_PID"; do
+    name="${item%%:*}"
+    pid="${item##*:}"
+    if ! kill -0 "$pid" 2>/dev/null; then FAILED="$FAILED $name"; fi
+  done
+  if [ -n "$FAILED" ]; then
+    echo "Processos encerrados:$FAILED"
+    for f in /tmp/nginx.log /tmp/xvfb.log /tmp/remote-api.log /tmp/websockify.log /tmp/x11vnc.log /tmp/xfce.log; do
+      if [ -s "$f" ]; then echo "===== $f ====="; tail -n 40 "$f"; fi
+    done
+    exit 1
+  fi
 done
-echo "Um processo essencial encerrou; finalizando serviço."
-exit 1
