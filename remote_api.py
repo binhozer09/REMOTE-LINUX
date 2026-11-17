@@ -42,7 +42,8 @@ def download_official_via_browser():
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1280,900")
+    options.add_argument("--window-size=412,915")
+    options.add_argument("--user-agent=Mozilla/5.0 (Linux; Android 15; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36")
     options.add_experimental_option("prefs", {
         "download.default_directory": str(download_dir),
         "download.prompt_for_download": False,
@@ -53,6 +54,7 @@ def download_official_via_browser():
     driver = None
     try:
         driver = webdriver.Chrome(service=Service(driver_path), options=options)
+        driver.execute_cdp_cmd("Emulation.setDeviceMetricsOverride", {"width": 412, "height": 915, "deviceScaleFactor": 2.625, "mobile": True})
         driver.execute_cdp_cmd("Page.setDownloadBehavior", {
             "behavior": "allow",
             "downloadPath": str(download_dir)
@@ -75,6 +77,9 @@ def download_official_via_browser():
                 title: document.title || "",
                 url: location.href,
                 body: body ? (body.innerText || "").slice(0, 1200) : "",
+                contentInfo: document.querySelector(".gr-content-info")?.outerHTML.slice(0, 2200) || "",
+                googleBox: document.querySelector(".gr-google")?.outerHTML.slice(0, 800) || "",
+                resources: performance.getEntriesByType("resource").filter(e => /wildflame|freefiremobile|\\/api\\//i.test(e.name)).map(e => e.name).slice(0, 25),
                 elements: elements.slice(0, 35).map(el => ({
                     tag: el.tagName,
                     text: (el.innerText || el.textContent || "").trim().slice(0, 100),
@@ -102,7 +107,7 @@ def download_official_via_browser():
                 el.getAttribute("src") || "", String(el.className || ""),
                 getComputedStyle(el).backgroundImage || ""
             ].join(" ").toLowerCase();
-            const match = all.find(el => visible(el) && /(baixar|download|apk)/i.test(label(el)));
+            const match = all.find(el => visible(el) && /(baixar|download)/i.test(label(el))) || all.find(el => visible(el) && /(download|apk)/i.test([String(el.className || ""), el.getAttribute("href") || "", el.getAttribute("src") || "", getComputedStyle(el).backgroundImage || ""].join(" ")));
             if (!match) return {clicked:false, body:(document.body?.innerText || "").slice(0,1000)};
             const target = match.closest("a,button,[role='button'],[onclick]") || match;
             target.scrollIntoView({block:"center"});
@@ -147,7 +152,7 @@ def download_official():
     page_req = urllib.request.Request(
         OFFICIAL,
         headers={
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Linux; Android 15; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,*/*"
         }
     )
@@ -165,7 +170,7 @@ def download_official():
             api_req = urllib.request.Request(
                 api_url,
                 headers={
-                    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0 Safari/537.36",
+                    "User-Agent": "Mozilla/5.0 (Linux; Android 15; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36",
                     "Accept": "application/json, text/plain, */*",
                     "Referer": page_url,
                     "Origin": "https://ffodownload.freefiremobile.com",
