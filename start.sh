@@ -56,6 +56,7 @@ gosu remote chromium \
   --enable-extensions \
   --disable-extensions-except=/opt/auto-refresh \
   --load-extension=/opt/auto-refresh \
+  --enable-audio-focus=no-enforce \
   --autoplay-policy=no-user-gesture-required \
   --disable-background-timer-throttling \
   --disable-renderer-backgrounding \
