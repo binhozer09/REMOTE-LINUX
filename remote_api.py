@@ -46,7 +46,7 @@ class Handler(BaseHTTPRequestHandler):
                 with zipfile.ZipFile(APK) as z:
                     names = z.namelist()
                     interesting = [n for n in names if re.search(r'(fps|frame|config|device|quality|setting|global|version|manifest)', n, re.I)][:160]
-                    dex = [n for n in names if re.fullmatch(r'classes(?:\\d+)?\\.dex', n)]
+                    dex = [n for n in names if re.fullmatch(r'classes(?:\d+)?\.dex', n)]
                     libs = [n for n in names if n.endswith(".so")]
                     hits = []
                     patterns = re.compile(rb'(?i)(fps|frame.?rate|refresh.?rate|90.?hz|60.?hz|target.?fps|frame.?limit)')
