@@ -48,6 +48,11 @@ chown -R remote:remote /home/remote/.config/chromium /home/remote/Downloads
 gosu remote chromium \
   --no-sandbox \
   --disable-dev-shm-usage \
+  --disable-gpu \
+  --disable-gpu-compositing \
+  --disable-features=Vulkan,UseSkiaRenderer \
+  --renderer-process-limit=4 \
+  --process-per-site \
   --enable-extensions \
   --disable-extensions-except=/opt/auto-refresh \
   --load-extension=/opt/auto-refresh \
