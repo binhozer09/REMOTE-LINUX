@@ -1,10 +1,16 @@
-// Mantém cada aba do YouTube reproduzindo: se o vídeo pausar ou terminar,
-// tenta iniciar novamente. Também recarrega a aba a cada 60 segundos.
+// Recupera automaticamente a reprodução do YouTube e atualiza cada aba a cada 60s.
 (() => {
   if (window.__remotePlaybackGuardInstalled) return;
   window.__remotePlaybackGuardInstalled = true;
 
-  const isYouTube = /(^|\\.)youtube\\.com$|(^|\\.)youtube-nocookie\\.com$/.test(location.hostname);
+  const host = location.hostname.toLowerCase();
+  const isYouTube =
+    host === 'youtube.com' ||
+    host.endsWith('.youtube.com') ||
+    host === 'youtube-nocookie.com' ||
+    host.endsWith('.youtube-nocookie.com') ||
+    host === 'youtu.be';
+
   if (!isYouTube) return;
 
   let playAttemptInProgress = false;
@@ -24,13 +30,14 @@
       if (video.ended) video.currentTime = 0;
       await video.play();
     } catch (error) {
-      console.debug('[Remote YouTube Autoplay] Reprodução bloqueada:', error);
+      // Pode ser bloqueio de autoplay do próprio navegador/YouTube.
+      console.debug('[Remote YouTube Autoplay] Reprodução não autorizada:', error);
     } finally {
       playAttemptInProgress = false;
     }
   };
 
-  // Detecta pausas e também navegação interna do YouTube.
+  // Verifica pausas e player carregado depois da navegação interna do YouTube.
   window.setInterval(tryPlay, 2000);
   document.addEventListener('yt-navigate-finish', () => {
     window.setTimeout(tryPlay, 1000);
@@ -42,6 +49,6 @@
     window.setTimeout(tryPlay, 1000);
   }
 
-  // Cada aba recarrega a página automaticamente a cada 60 segundos.
+  // Mantém o comportamento solicitado: recarrega esta aba a cada minuto.
   window.setInterval(() => window.location.reload(), 60000);
 })();
