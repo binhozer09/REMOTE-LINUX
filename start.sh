@@ -33,7 +33,7 @@ VNC_PID=$!
 
 websockify --web=/usr/share/novnc 127.0.0.1:6080 localhost:5900 >/tmp/websockify.log 2>&1 &
 WEB_PID=$!
-python3 /usr/local/bin/remote-api.py >/tmp/remote-api.log 2>&1 &
+python3 /usr/local/bin/remote-api.py &
 API_PID=$!
 nginx -g 'daemon off;' >/tmp/nginx.log 2>&1 &
 NGINX_PID=$!
