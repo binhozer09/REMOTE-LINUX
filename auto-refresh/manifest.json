@@ -1,11 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Atualização automática - 1 minuto",
-  "version": "1.0.0",
-  "description": "Atualiza a página aberta automaticamente a cada 60 segundos.",
+  "name": "YouTube Autoplay e Reinício Automático",
+  "version": "1.2.0",
+  "description": "Inicia ou retoma o vídeo automaticamente e reinicia a página a cada 60 segundos.",
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": [
+        "*://*.youtube.com/*",
+        "*://youtu.be/*",
+        "*://*.youtube-nocookie.com/*"
+      ],
       "js": ["refresh.js"],
       "run_at": "document_idle"
     }
