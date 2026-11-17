@@ -68,6 +68,7 @@ def download_official():
                 + "; trecho=" + source[:400].replace("\n", " ")
             )
 
+    print("AUTO: links candidatos " + json.dumps(candidates[:10], ensure_ascii=False), flush=True)
     last_error = "nenhum link retornou APK ZIP"
     for target in candidates[:10]:
         temp = APK.with_suffix(".download")
@@ -75,7 +76,7 @@ def download_official():
         total = 0
         first = b""
         try:
-            download_req = urllib.request.Request(target, headers={"User-Agent": "Mozilla/5.0"})
+            download_req = urllib.request.Request(target, headers={"User-Agent": "Mozilla/5.0", "Referer": page_url, "Origin": "https://ffodownload.freefiremobile.com"})
             with urllib.request.urlopen(download_req, timeout=90) as response:
                 final_url = response.geturl()
                 with temp.open("wb") as out:
@@ -98,7 +99,7 @@ def download_official():
             return {"saved": str(APK), "bytes": total, "sha256": digest.hexdigest(), "final_url": final_url}
         except Exception as exc:
             temp.unlink(missing_ok=True)
-            last_error = str(exc)
+            last_error = target + " -> " + str(exc)
     raise ValueError("Não consegui obter o APK pelos links oficiais: " + last_error)
 
 def inspect_apk():
