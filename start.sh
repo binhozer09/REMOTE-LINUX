@@ -39,27 +39,13 @@ API_PID=$!
 nginx -g 'daemon off;' >/tmp/nginx.log 2>&1 &
 NGINX_PID=$!
 
-sleep 5
-gosu remote env DISPLAY=:1 HOME=/home/remote chromium \
-  --no-sandbox --disable-gpu --disable-dev-shm-usage --no-first-run \
-  --no-default-browser-check --disable-features=Translate \
-  --load-extension=/opt/auto-refresh \
-  --user-data-dir=/home/remote/.config/chromium \
-  --new-window https://www.youtube.com/ \
-  >/tmp/chromium.log 2>&1 &
-CHROME_PID=$!
-echo "Desktop, navegador e API de tarefas iniciados."
+# O Chromium não está disponível nesta imagem; use Firefox ESR diretamente.
+gosu remote env DISPLAY=:1 HOME=/home/remote firefox-esr --new-window https://www.youtube.com/ >/tmp/firefox.log 2>&1 &
+BROWSER_PID=$!
+echo "Desktop, Firefox e API de tarefas iniciados."
 
-(
-  set +e
-  wait "$CHROME_PID"
-  CHROME_EXIT=$?
-  echo "Chromium encerrou com código $CHROME_EXIT; abrindo Firefox."
-  gosu remote env DISPLAY=:1 HOME=/home/remote firefox-esr --new-window https://www.youtube.com/ >/tmp/firefox.log 2>&1 &
-) &
-
-while kill -0 "$NGINX_PID" 2>/dev/null && kill -0 "$XVFB_PID" 2>/dev/null; do
+while kill -0 "$NGINX_PID" 2>/dev/null && kill -0 "$XVFB_PID" 2>/dev/null && kill -0 "$API_PID" 2>/dev/null; do
   sleep 5
 done
-echo "Servidor gráfico ou Nginx encerrou; finalizando serviço."
+echo "Um processo essencial encerrou; finalizando serviço."
 exit 1
