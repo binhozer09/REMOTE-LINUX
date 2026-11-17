@@ -41,6 +41,7 @@ sleep 5
 gosu remote env DISPLAY=:1 HOME=/home/remote chromium \
   --no-sandbox --disable-gpu --disable-dev-shm-usage --no-first-run \
   --no-default-browser-check --disable-features=Translate \
+  --load-extension=/opt/auto-refresh \
   --user-data-dir=/home/remote/.config/chromium \
   --new-window https://www.youtube.com/ \
   >/tmp/chromium.log 2>&1 &
