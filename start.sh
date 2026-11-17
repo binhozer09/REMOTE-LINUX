@@ -31,7 +31,7 @@ gosu remote x11vnc -display :1 -rfbauth /home/remote/.vnc/passwd \
   -forever -shared -localhost -rfbport 5900 -xkb -noxrecord -noxfixes -noxdamage >/tmp/x11vnc.log 2>&1 &
 VNC_PID=$!
 
-websockify --web=/usr/share/novnc 127.0.0.1:6080 localhost:5900 >/tmp/websockify.log 2>&1 &
+websockify --heartbeat=25 --web=/usr/share/novnc 127.0.0.1:6080 localhost:5900 >/tmp/websockify.log 2>&1 &
 WEB_PID=$!
 
 YOUTUBE_URL="${YOUTUBE_URL:-https://youtu.be/bWO1FNUTIao?is=IHQ1W9LWAd36Sf23}"
