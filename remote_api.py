@@ -35,36 +35,38 @@ def download_official():
         content_type = response.headers.get("Content-Type", "")
 
     candidates = []
-    api_url = urljoin(page_url, "/api/info?lang=pt-br")
-    try:
-        api_req = urllib.request.Request(
-            api_url,
-            headers={
-                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0 Safari/537.36",
-                "Accept": "application/json, text/plain, */*",
-                "Referer": page_url,
-                "Origin": "https://ffodownload.freefiremobile.com",
-                "X-Requested-With": "XMLHttpRequest"
-            }
-        )
-        with opener.open(api_req, timeout=45) as api_response:
-            api_payload = json.loads(api_response.read(2 * 1024 * 1024).decode("utf-8", "replace"))
-        payload_data = api_payload.get("data", api_payload) if isinstance(api_payload, dict) else {}
-        config = payload_data.get("config", {}) if isinstance(payload_data, dict) else {}
-        for key in ("apk_link", "download_link", "amazon_link"):
-            value = config.get(key)
-            if value:
-                candidates.append(value)
-        print("AUTO: resposta da API oficial " + json.dumps({
-            "keys": list(api_payload.keys()) if isinstance(api_payload, dict) else [],
-            "data_keys": list(payload_data.keys()) if isinstance(payload_data, dict) else [],
-            "config_keys": list(config.keys()) if isinstance(config, dict) else [],
-            "apk_link_present": bool(config.get("apk_link")),
-            "download_link_present": bool(config.get("download_link")),
-            "candidates": candidates[:5]
-        }, ensure_ascii=False), flush=True)
-    except Exception as exc:
-        print("AUTO: API oficial não respondeu; usando análise da página: " + repr(exc), flush=True)
+    api_reports = []
+    languages = ["pt-br", "en", "hi", "id", "ru", "es", "th", "bn", "tr", "ur", "fr", "vn", "zh-tw"]
+    for language in languages:
+        api_url = urljoin(page_url, "/api/info?lang=" + language)
+        try:
+            api_req = urllib.request.Request(
+                api_url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0 Safari/537.36",
+                    "Accept": "application/json, text/plain, */*",
+                    "Referer": page_url,
+                    "Origin": "https://ffodownload.freefiremobile.com",
+                    "X-Requested-With": "XMLHttpRequest"
+                }
+            )
+            with opener.open(api_req, timeout=25) as api_response:
+                api_payload = json.loads(api_response.read(2 * 1024 * 1024).decode("utf-8", "replace"))
+            payload_data = api_payload.get("data", api_payload) if isinstance(api_payload, dict) else {}
+            config = payload_data.get("config", {}) if isinstance(payload_data, dict) else {}
+            apk_link = config.get("apk_link") if isinstance(config, dict) else None
+            download_link = config.get("download_link") if isinstance(config, dict) else None
+            api_reports.append({
+                "lang": language,
+                "is_ind": config.get("is_ind") if isinstance(config, dict) else None,
+                "apk_link": apk_link,
+                "download_link": download_link
+            })
+            if apk_link and apk_link not in candidates:
+                candidates.append(apk_link)
+        except Exception as exc:
+            api_reports.append({"lang": language, "error": str(exc)})
+    print("AUTO: resultados API oficial " + json.dumps(api_reports, ensure_ascii=False), flush=True)
 
     if page.startswith(b"PK"):
         candidates.insert(0, page_url)
