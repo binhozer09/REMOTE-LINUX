@@ -62,8 +62,13 @@ def download_official():
                 strings = re.findall(r'''["']([^"']*(?:\.apk|download|package|android)[^"']*)["']''', js, re.I)
                 for value in strings[:100]:
                     add_candidate(value, script_url)
-                for match in list(re.finditer(r"(?i)(apk|download|package|android)", js))[:25]:
-                    script_findings.append({"script": script_url, "match": js[max(0, match.start()-100):match.end()+160]})
+                patterns = [r"\\beo\\s*=", r"baseURL", r"axios\\.create", r"api[./]", r"download_link", r"apk_link", r"config\\s*:"]
+                for pattern in patterns:
+                    for match in list(re.finditer(pattern, js, re.I))[:5]:
+                        script_findings.append({"script": script_url, "pattern": pattern, "match": js[max(0, match.start()-180):match.end()+260]})
+                for url_match in re.findall(r'''["'](https?://[^"']+)["']''', js, re.I):
+                    if any(word in url_match.lower() for word in ("api", "config", "download", "freefire", "garena")):
+                        script_findings.append({"script": script_url, "url": url_match[:400]})
             except Exception as exc:
                 script_findings.append({"script": script_url, "error": str(exc)})
 
