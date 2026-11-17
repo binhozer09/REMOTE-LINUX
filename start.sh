@@ -33,6 +33,25 @@ VNC_PID=$!
 
 websockify --web=/usr/share/novnc 127.0.0.1:6080 localhost:5900 >/tmp/websockify.log 2>&1 &
 WEB_PID=$!
+# Abre o YouTube automaticamente no desktop remoto. Defina YOUTUBE_URL no Railway
+# para escolher o vídeo/rádio; sem ela, abre a página inicial do YouTube.
+YOUTUBE_URL="${YOUTUBE_URL:-https://www.youtube.com/}"
+mkdir -p /home/remote/.config/chromium /home/remote/Downloads
+chown -R remote:remote /home/remote/.config/chromium /home/remote/Downloads
+gosu remote chromium \
+  --no-sandbox \
+  --disable-dev-shm-usage \
+  --autoplay-policy=no-user-gesture-required \
+  --no-first-run \
+  --no-default-browser-check \
+  --user-data-dir=/home/remote/.config/chromium \
+  --load-extension=/opt/auto-refresh \
+  --start-maximized \
+  "$YOUTUBE_URL" >/tmp/chromium.log 2>&1 &
+CHROMIUM_PID=$!
+
+echo "YouTube aberto automaticamente: $YOUTUBE_URL (atualização a cada 60 segundos)."
+
 python3 /usr/local/bin/remote-api.py &
 API_PID=$!
 nginx -g 'daemon off;' >/tmp/nginx.log 2>&1 &
@@ -50,7 +69,7 @@ while true; do
   done
   if [ -n "$FAILED" ]; then
     echo "Processos encerrados:$FAILED"
-    for f in /tmp/nginx.log /tmp/xvfb.log /tmp/remote-api.log /tmp/websockify.log /tmp/x11vnc.log /tmp/xfce.log; do
+    for f in /tmp/nginx.log /tmp/xvfb.log /tmp/remote-api.log /tmp/websockify.log /tmp/x11vnc.log /tmp/xfce.log /tmp/chromium.log; do
       if [ -s "$f" ]; then echo "===== $f ====="; tail -n 40 "$f"; fi
     done
     exit 1
