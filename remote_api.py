@@ -49,13 +49,15 @@ def download_official():
         )
         with opener.open(api_req, timeout=45) as api_response:
             api_payload = json.loads(api_response.read(2 * 1024 * 1024).decode("utf-8", "replace"))
-        config = api_payload.get("config", {}) if isinstance(api_payload, dict) else {}
+        payload_data = api_payload.get("data", api_payload) if isinstance(api_payload, dict) else {}
+        config = payload_data.get("config", {}) if isinstance(payload_data, dict) else {}
         for key in ("apk_link", "download_link", "amazon_link"):
             value = config.get(key)
             if value:
                 candidates.append(value)
         print("AUTO: resposta da API oficial " + json.dumps({
             "keys": list(api_payload.keys()) if isinstance(api_payload, dict) else [],
+            "data_keys": list(payload_data.keys()) if isinstance(payload_data, dict) else [],
             "config_keys": list(config.keys()) if isinstance(config, dict) else [],
             "apk_link_present": bool(config.get("apk_link")),
             "download_link_present": bool(config.get("download_link")),
