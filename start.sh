@@ -35,16 +35,13 @@ websockify --heartbeat=25 --web=/usr/share/novnc 127.0.0.1:6080 localhost:5900 >
 WEB_PID=$!
 
 YOUTUBE_URL="${YOUTUBE_URL:-https://youtu.be/bWO1FNUTIao?is=IHQ1W9LWAd36Sf23}"
-YOUTUBE_TAB_COUNT=10
-CHROMIUM_URLS=()
-for tab in $(seq 1 "$YOUTUBE_TAB_COUNT"); do
-  CHROMIUM_URLS+=("$YOUTUBE_URL")
-done
+YOUTUBE_TAB_COUNT=1
+CHROMIUM_URLS=("$YOUTUBE_URL")
 mkdir -p /home/remote/.config/chromium /home/remote/Downloads
 chown -R remote:remote /home/remote/.config/chromium /home/remote/Downloads
 
-# A política explícita permite autoplay sem clique; a extensão também monitora
-# pausas e tenta retomar o vídeo após cada recarga de 60 segundos.
+# Uma única aba reduz o consumo do Chromium; a extensão mantém a recarga
+# automática do YouTube a cada 60 segundos e tenta retomar a reprodução.
 gosu remote chromium \
   --no-sandbox \
   --disable-dev-shm-usage \
@@ -75,7 +72,7 @@ else
   tail -n 30 /tmp/chromium.log || true
 fi
 
-echo "YouTube aberto automaticamente em $YOUTUBE_TAB_COUNT abas: $YOUTUBE_URL (autoplay ativo e cada aba atualiza a cada 60 segundos)."
+echo "YouTube aberto automaticamente em $YOUTUBE_TAB_COUNT aba: $YOUTUBE_URL (autoplay ativo e a aba atualiza a cada 60 segundos)."
 
 python3 /usr/local/bin/remote-api.py &
 API_PID=$!
