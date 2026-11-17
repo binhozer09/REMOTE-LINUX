@@ -70,6 +70,7 @@ gosu remote x11vnc -display :1 -rfbauth /home/remote/.vnc/passwd \
 VNC_PID=$!
 
 websockify --heartbeat=25 --web=/usr/share/novnc 127.0.0.1:6080 localhost:5900 >/tmp/websockify.log 2>&1 &
+WEB_PID=$!
 
 YOUTUBE_URL="${YOUTUBE_URL:-https://youtu.be/bWO1FNUTIao?is=IHQ1W9LWAd36Sf23}"
 YOUTUBE_TAB_COUNT=1
