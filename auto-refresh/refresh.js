@@ -1,4 +1,6 @@
-// Autoplay persistente do YouTube + reinício da faixa a cada 60 segundos.
+// Autoplay persistente do YouTube. A recuperação e a recarga da aba
+// são controladas pelo service worker, fora da página, para também funcionar
+// quando o Chromium troca a página por uma tela interna de erro.
 (() => {
   if (window.__remotePlaybackGuardInstalled) return;
   window.__remotePlaybackGuardInstalled = true;
@@ -10,7 +12,6 @@
     host === "youtube-nocookie.com" || host.endsWith(".youtube-nocookie.com");
   if (!isYouTube) return;
 
-  const RELOAD_MS = 60000;
   const RETRY_MS = 1200;
   let attempting = false;
   let lastAttempt = 0;
@@ -26,7 +27,6 @@
     const player = getPlayer();
     if (!video || attempting) return;
 
-    // Garante que o elemento de mídia não fique configurado para autoplay mudo.
     video.autoplay = true;
     video.setAttribute("autoplay", "");
     video.playsInline = true;
@@ -52,12 +52,11 @@
         try { player?.seekTo?.(0, true); } catch (_) {}
       }
 
-      // Usa primeiro a API do player do YouTube e depois a API HTMLMediaElement.
       try { player?.playVideo?.(); } catch (_) {}
       await video.play();
       console.info("[REMOTE AUTOPLAY] Reprodução iniciada/retomada:", reason);
     } catch (error) {
-      console.debug("[REMOTE AUTOPLAY] Tentativa aguardando permissão do Chromium:", String(error));
+      console.debug("[REMOTE AUTOPLAY] Tentativa aguardando o Chromium:", String(error));
     } finally {
       attempting = false;
     }
@@ -67,11 +66,9 @@
     window.setTimeout(() => startPlayback(reason), delay);
   };
 
-  // Tenta no carregamento e repete enquanto a aba estiver aberta.
   schedulePlayback("page-load", 1200);
   window.setInterval(() => startPlayback("watchdog"), RETRY_MS);
 
-  // Reage quando o YouTube cria/substitui o player ou carrega os dados do vídeo.
   ["yt-navigate-finish", "yt-page-data-updated"].forEach(eventName => {
     document.addEventListener(eventName, () => schedulePlayback(eventName, 700));
   });
@@ -85,25 +82,5 @@
     if (event.target instanceof HTMLVideoElement) schedulePlayback("video-ended", 300);
   }, true);
 
-  // Espalha a primeira recarga das 10 abas para evitar picos simultâneos.
-  // Depois da primeira recarga, cada aba mantém exatamente 60 segundos.
-  const reloadInitializedKey = "__remoteYoutubeReloadInitialized";
-  let firstReload = false;
-  let initialOffset = 0;
-  try {
-    firstReload = sessionStorage.getItem(reloadInitializedKey) !== "1";
-    if (firstReload) {
-      sessionStorage.setItem(reloadInitializedKey, "1");
-      initialOffset = Math.floor(Math.random() * 10000);
-    }
-  } catch (_) {
-    firstReload = false;
-  }
-
-  if (firstReload) {
-    window.setTimeout(() => window.location.reload(), RELOAD_MS + initialOffset);
-  } else {
-    window.setInterval(() => window.location.reload(), RELOAD_MS);
-  }
-  console.info("[REMOTE AUTOPLAY] Proteção ativa; atualização programada para 60 segundos.");
+  console.info("[REMOTE AUTOPLAY] Proteção de reprodução ativa; recarga é gerenciada em segundo plano.");
 })();
