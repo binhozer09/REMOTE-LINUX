@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Atualização automática - 2 minutos",
+  "version": "1.0.0",
+  "description": "Atualiza a página aberta automaticamente a cada 120 segundos.",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["refresh.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
