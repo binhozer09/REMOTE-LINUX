@@ -20,69 +20,67 @@ AUTO_ANALYZE = os.environ.get("AUTO_ANALYZE_FREEFIRE", "0") == "1"
 STATE = {"auto_task": "waiting", "error": None}
 
 def download_official():
-    req = urllib.request.Request(
+    cookie_jar = urllib.request.HTTPCookieProcessor()
+    opener = urllib.request.build_opener(cookie_jar)
+    page_req = urllib.request.Request(
         OFFICIAL,
-        headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0 Safari/537.36", "Accept": "text/html,application/xhtml+xml,*/*"}
+        headers={
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,*/*"
+        }
     )
-    with urllib.request.urlopen(req, timeout=90) as response:
+    with opener.open(page_req, timeout=90) as response:
         page = response.read(5 * 1024 * 1024 + 1)
         page_url = response.geturl()
         content_type = response.headers.get("Content-Type", "")
+
+    candidates = []
+    api_url = urljoin(page_url, "/api/info?lang=pt-br")
+    try:
+        api_req = urllib.request.Request(
+            api_url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0 Safari/537.36",
+                "Accept": "application/json, text/plain, */*",
+                "Referer": page_url,
+                "Origin": "https://ffodownload.freefiremobile.com",
+                "X-Requested-With": "XMLHttpRequest"
+            }
+        )
+        with opener.open(api_req, timeout=45) as api_response:
+            api_payload = json.loads(api_response.read(2 * 1024 * 1024).decode("utf-8", "replace"))
+        config = api_payload.get("config", {}) if isinstance(api_payload, dict) else {}
+        for key in ("apk_link", "download_link", "amazon_link"):
+            value = config.get(key)
+            if value:
+                candidates.append(value)
+        print("AUTO: resposta da API oficial " + json.dumps({
+            "keys": list(api_payload.keys()) if isinstance(api_payload, dict) else [],
+            "config_keys": list(config.keys()) if isinstance(config, dict) else [],
+            "apk_link_present": bool(config.get("apk_link")),
+            "download_link_present": bool(config.get("download_link")),
+            "candidates": candidates[:5]
+        }, ensure_ascii=False), flush=True)
+    except Exception as exc:
+        print("AUTO: API oficial não respondeu; usando análise da página: " + repr(exc), flush=True)
+
     if page.startswith(b"PK"):
-        candidates = [page_url]
-    else:
+        candidates.insert(0, page_url)
+    elif not candidates:
         source = page[:5 * 1024 * 1024].decode("utf-8", "replace")
-        raw_links = re.findall(r'''(?:href|src|data-href|data-url)\s*=\s*["']([^"']+)["']''', source, re.I)
-        raw_links += re.findall(r'''https?://[^"'\s<>]+''', source, re.I)
-        candidates = []
+        raw_links = re.findall(r'''(?:href|src|data-href|data-url)\\s*=\\s*["']([^"']+)["']''', source, re.I)
+        raw_links += re.findall(r'''https?://[^"'\\s<>]+''', source, re.I)
         allowed = ("freefiremobile.com", "garena.com", "akamaihd.net", "akamaized.net", "wildflamestudio.com")
-        def add_candidate(raw, base):
-            raw = html.unescape(raw).strip()
-            if not (raw.startswith(("http://", "https://", "//", "/")) or re.search(r"(?i)https?%3a", raw)):
-                return
-            absolute = urljoin(base, raw)
+        for raw in raw_links:
+            absolute = urljoin(page_url, html.unescape(raw))
             parsed = urlparse(absolute)
             host = (parsed.hostname or "").lower()
-            path = parsed.path.lower()
-            if path.endswith((".js", ".css", ".png", ".svg", ".ico")):
-                return
-            looks_download = path.endswith(".apk") or ".apk/" in path or path.rstrip("/").endswith("/download") or "/download/" in path
-            if host.endswith(allowed) and absolute not in candidates and looks_download:
+            if host.endswith(allowed) and parsed.path.lower().endswith(".apk") and absolute not in candidates:
                 candidates.append(absolute)
-        for raw in raw_links:
-            add_candidate(raw, page_url)
-
-        script_urls = [urljoin(page_url, x) for x in re.findall(r'''<script[^>]+src=["']([^"']+)["']''', source, re.I)]
-        script_findings = []
-        for script_url in script_urls[:8]:
-            try:
-                script_req = urllib.request.Request(script_url, headers={"User-Agent": "Mozilla/5.0"})
-                with urllib.request.urlopen(script_req, timeout=30) as script_response:
-                    js = script_response.read(8 * 1024 * 1024).decode("utf-8", "replace")
-                strings = re.findall(r'''["']([^"']*(?:\.apk|download|package|android)[^"']*)["']''', js, re.I)
-                for value in strings[:100]:
-                    add_candidate(value, script_url)
-                patterns = [r"\beo\s*=", r"baseURL", r"axios\.create", r"api[./]", r"download_link", r"apk_link", r"config\s*:"]
-                for pattern in patterns:
-                    for match in list(re.finditer(pattern, js, re.I))[:5]:
-                        script_findings.append({"script": script_url, "pattern": pattern, "match": js[max(0, match.start()-180):match.end()+260]})
-                for url_match in re.findall(r'''["'](https?://[^"']+)["']''', js, re.I):
-                    if any(word in url_match.lower() for word in ("api", "config", "download", "freefire", "garena")):
-                        script_findings.append({"script": script_url, "url": url_match[:400]})
-            except Exception as exc:
-                script_findings.append({"script": script_url, "error": str(exc)})
-
-        print("AUTO: análise dos scripts " + json.dumps(script_findings[:20], ensure_ascii=False), flush=True)
         if not candidates:
-            raise ValueError(
-                "A página oficial retornou HTML, não o APK. "
-                + "Content-Type=" + content_type
-                + "; links=" + json.dumps(raw_links[:30], ensure_ascii=False)
-                + "; scripts=" + json.dumps(script_findings[:30], ensure_ascii=False)
-                + "; trecho=" + source[:400].replace("\n", " ")
-            )
+            raise ValueError("Página oficial HTML sem link APK e API sem apk_link; Content-Type=" + content_type)
 
-    print("AUTO: links candidatos " + json.dumps(candidates[:10], ensure_ascii=False), flush=True)
+    print("AUTO: links APK candidatos " + json.dumps(candidates[:10], ensure_ascii=False), flush=True)
     last_error = "nenhum link retornou APK ZIP"
     for target in candidates[:10]:
         temp = APK.with_suffix(".download")
@@ -90,8 +88,16 @@ def download_official():
         total = 0
         first = b""
         try:
-            download_req = urllib.request.Request(target, headers={"User-Agent": "Mozilla/5.0", "Referer": page_url, "Origin": "https://ffodownload.freefiremobile.com"})
-            with urllib.request.urlopen(download_req, timeout=90) as response:
+            download_req = urllib.request.Request(
+                target,
+                headers={
+                    "User-Agent": "Mozilla/5.0",
+                    "Referer": page_url,
+                    "Origin": "https://ffodownload.freefiremobile.com",
+                    "Accept": "*/*"
+                }
+            )
+            with opener.open(download_req, timeout=90) as response:
                 final_url = response.geturl()
                 with temp.open("wb") as out:
                     while True:
@@ -107,7 +113,7 @@ def download_official():
                         out.write(chunk)
             if first != b"PK":
                 temp.unlink(missing_ok=True)
-                last_error = "link não retornou ZIP: " + final_url
+                last_error = target + " não retornou ZIP"
                 continue
             temp.replace(APK)
             return {"saved": str(APK), "bytes": total, "sha256": digest.hexdigest(), "final_url": final_url}
