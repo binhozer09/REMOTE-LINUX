@@ -180,7 +180,7 @@ def download_official():
             if host.endswith(allowed) and parsed.path.lower().endswith(".apk") and absolute not in candidates:
                 candidates.append(absolute)
         if not candidates:
-            raise ValueError("Página oficial HTML sem link APK e API sem apk_link; Content-Type=" + content_type)
+            print("AUTO: API oficial sem apk_link; tentando o botão de download no navegador oficial", flush=True)
 
     print("AUTO: links APK candidatos " + json.dumps(candidates[:10], ensure_ascii=False), flush=True)
     last_error = "nenhum link retornou APK ZIP"
