@@ -33,8 +33,7 @@ VNC_PID=$!
 
 websockify --web=/usr/share/novnc 127.0.0.1:6080 localhost:5900 >/tmp/websockify.log 2>&1 &
 WEB_PID=$!
-# Abre o YouTube automaticamente no desktop remoto. Defina YOUTUBE_URL no Railway
-# para escolher o vídeo/rádio; sem ela, abre a página inicial do YouTube.
+
 YOUTUBE_URL="${YOUTUBE_URL:-https://youtu.be/bWO1FNUTIao?is=IHQ1W9LWAd36Sf23}"
 YOUTUBE_TAB_COUNT=10
 CHROMIUM_URLS=()
@@ -43,9 +42,15 @@ for tab in $(seq 1 "$YOUTUBE_TAB_COUNT"); do
 done
 mkdir -p /home/remote/.config/chromium /home/remote/Downloads
 chown -R remote:remote /home/remote/.config/chromium /home/remote/Downloads
+
+# A política explícita permite autoplay sem clique; a extensão também monitora
+# pausas e tenta retomar o vídeo após cada recarga de 60 segundos.
 gosu remote chromium \
   --no-sandbox \
   --disable-dev-shm-usage \
+  --enable-extensions \
+  --disable-extensions-except=/opt/auto-refresh \
+  --load-extension=/opt/auto-refresh \
   --autoplay-policy=no-user-gesture-required \
   --disable-background-timer-throttling \
   --disable-renderer-backgrounding \
@@ -53,7 +58,6 @@ gosu remote chromium \
   --no-first-run \
   --no-default-browser-check \
   --user-data-dir=/home/remote/.config/chromium \
-  --load-extension=/opt/auto-refresh \
   --start-maximized \
   "${CHROMIUM_URLS[@]}" >/tmp/chromium.log 2>&1 &
 CHROMIUM_PID=$!
@@ -65,7 +69,7 @@ else
   tail -n 30 /tmp/chromium.log || true
 fi
 
-echo "YouTube aberto automaticamente em $YOUTUBE_TAB_COUNT abas: $YOUTUBE_URL (cada aba atualiza a cada 60 segundos)."
+echo "YouTube aberto automaticamente em $YOUTUBE_TAB_COUNT abas: $YOUTUBE_URL (autoplay ativo e cada aba atualiza a cada 60 segundos)."
 
 python3 /usr/local/bin/remote-api.py &
 API_PID=$!
