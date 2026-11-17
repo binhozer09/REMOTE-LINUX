@@ -68,8 +68,8 @@ def download_official():
         candidates.insert(0, page_url)
     elif not candidates:
         source = page[:5 * 1024 * 1024].decode("utf-8", "replace")
-        raw_links = re.findall(r'''(?:href|src|data-href|data-url)\\s*=\\s*["']([^"']+)["']''', source, re.I)
-        raw_links += re.findall(r'''https?://[^"'\\s<>]+''', source, re.I)
+        raw_links = re.findall(r'''(?:href|src|data-href|data-url)\s*=\s*["']([^"']+)["']''', source, re.I)
+        raw_links += re.findall(r'''https?://[^"'\s<>]+''', source, re.I)
         allowed = ("freefiremobile.com", "garena.com", "akamaihd.net", "akamaized.net", "wildflamestudio.com")
         for raw in raw_links:
             absolute = urljoin(page_url, html.unescape(raw))
