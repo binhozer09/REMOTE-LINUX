@@ -47,5 +47,22 @@ gosu remote env DISPLAY=:1 HOME=/home/remote chromium \
 CHROME_PID=$!
 echo "Chromium iniciado para abrir o YouTube (PID $CHROME_PID)."
 
-# Mantém o serviço vivo enquanto a sessão gráfica e o acesso remoto estiverem ativos.
-wait -n "$XVFB_PID" "$XFCE_PID" "$VNC_PID" "$WEB_PID"
+# Se o Chromium encerrar inesperadamente, registra o motivo e abre Firefox ESR
+# como navegador reserva, mantendo o acesso remoto disponível.
+(
+  set +e
+  wait "$CHROME_PID"
+  CHROME_EXIT=$?
+  echo "Chromium encerrou com código $CHROME_EXIT; diagnóstico:"
+  cat /tmp/chromium.log 2>/dev/null || true
+  echo "Abrindo Firefox ESR como navegador reserva."
+  gosu remote env DISPLAY=:1 HOME=/home/remote firefox-esr --new-window https://www.youtube.com/ \
+    >/tmp/firefox.log 2>&1 &
+) &
+
+# Mantém o contêiner ligado enquanto o servidor noVNC permanecer ativo.
+while kill -0 "$WEB_PID" 2>/dev/null && kill -0 "$XVFB_PID" 2>/dev/null; do
+  sleep 5
+done
+echo "Servidor gráfico ou noVNC encerrou; finalizando serviço."
+exit 1
