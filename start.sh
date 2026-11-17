@@ -49,6 +49,13 @@ gosu remote chromium \
   --start-maximized \
   "$YOUTUBE_URL" >/tmp/chromium.log 2>&1 &
 CHROMIUM_PID=$!
+sleep 2
+if pgrep -u remote -f 'chromium.*user-data-dir=/home/remote/.config/chromium' >/dev/null; then
+  echo "CHROMIUM: processo ativo."
+else
+  echo "CHROMIUM: não iniciou; últimas mensagens:"
+  tail -n 30 /tmp/chromium.log || true
+fi
 
 echo "YouTube aberto automaticamente: $YOUTUBE_URL (atualização a cada 60 segundos)."
 
@@ -57,7 +64,7 @@ API_PID=$!
 nginx -g 'daemon off;' >/tmp/nginx.log 2>&1 &
 NGINX_PID=$!
 
-echo "Desktop remoto e API de tarefas iniciados; navegador aguardando abertura manual."
+echo "Desktop remoto, Chromium, YouTube e API de tarefas iniciados."
 
 while true; do
   sleep 5
