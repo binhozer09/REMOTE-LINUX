@@ -113,6 +113,14 @@ class Handler(BaseHTTPRequestHandler):
         return self.reply(405, {"ok": False, "error": "method not allowed"})
 
     def do_GET(self):
+        if urlparse(self.path).path == "/health":
+            return self.reply(200, {
+                "ok": True,
+                "service": "REMOTE-LINUX remote task API",
+                "apk_downloaded": APK.exists(),
+                "apk_bytes": APK.stat().st_size if APK.exists() else 0,
+                "auto_task": STATE["auto_task"]
+            })
         q = parse_qs(urlparse(self.path).query)
         supplied = q.get("token", [""])[0]
         import hmac
