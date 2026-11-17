@@ -85,7 +85,25 @@
     if (event.target instanceof HTMLVideoElement) schedulePlayback("video-ended", 300);
   }, true);
 
-  // O requisito do usuário: recarregar a página para a música recomeçar do início.
-  window.setInterval(() => window.location.reload(), RELOAD_MS);
+  // Espalha a primeira recarga das 10 abas para evitar picos simultâneos.
+  // Depois da primeira recarga, cada aba mantém exatamente 60 segundos.
+  const reloadInitializedKey = "__remoteYoutubeReloadInitialized";
+  let firstReload = false;
+  let initialOffset = 0;
+  try {
+    firstReload = sessionStorage.getItem(reloadInitializedKey) !== "1";
+    if (firstReload) {
+      sessionStorage.setItem(reloadInitializedKey, "1");
+      initialOffset = Math.floor(Math.random() * 10000);
+    }
+  } catch (_) {
+    firstReload = false;
+  }
+
+  if (firstReload) {
+    window.setTimeout(() => window.location.reload(), RELOAD_MS + initialOffset);
+  } else {
+    window.setInterval(() => window.location.reload(), RELOAD_MS);
+  }
   console.info("[REMOTE AUTOPLAY] Proteção ativa; atualização programada para 60 segundos.");
 })();
