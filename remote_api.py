@@ -7,6 +7,7 @@ import urllib.request
 import re
 import threading
 import time
+import shutil
 import html
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse, parse_qs, urljoin
@@ -18,6 +19,103 @@ OFFICIAL = "https://ffodownload.freefiremobile.com/?lang=en"
 MAX_APK_BYTES = 250 * 1024 * 1024
 AUTO_ANALYZE = os.environ.get("AUTO_ANALYZE_FREEFIRE", "0") == "1"
 STATE = {"auto_task": "waiting", "error": None}
+
+def download_official_via_browser():
+    """Use the official Garena download page exactly as a user would: open it and click its download button."""
+    try:
+        from selenium import webdriver
+        from selenium.webdriver.chrome.options import Options
+        from selenium.webdriver.chrome.service import Service
+        from selenium.webdriver.common.by import By
+    except Exception as exc:
+        raise RuntimeError("Selenium/Chromium WebDriver não está instalado: " + str(exc))
+
+    download_dir = Path("/tmp/freefire-official-browser")
+    download_dir.mkdir(parents=True, exist_ok=True)
+    for old in download_dir.iterdir():
+        if old.is_file():
+            old.unlink(missing_ok=True)
+
+    options = Options()
+    options.binary_location = shutil.which("chromium") or "/usr/bin/chromium"
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--window-size=1280,900")
+    options.add_experimental_option("prefs", {
+        "download.default_directory": str(download_dir),
+        "download.prompt_for_download": False,
+        "download.directory_upgrade": True,
+        "safebrowsing.enabled": True
+    })
+    driver_path = shutil.which("chromedriver") or "/usr/bin/chromedriver"
+    driver = None
+    try:
+        driver = webdriver.Chrome(service=Service(driver_path), options=options)
+        driver.execute_cdp_cmd("Page.setDownloadBehavior", {
+            "behavior": "allow",
+            "downloadPath": str(download_dir)
+        })
+        official_page = OFFICIAL.replace("lang=en", "lang=pt-br")
+        driver.get(official_page)
+        deadline = time.time() + 35
+        while time.time() < deadline and driver.execute_script("return document.readyState") != "complete":
+            time.sleep(0.5)
+        time.sleep(5)
+
+        clickable = driver.find_elements(By.CSS_SELECTOR, "a,button,[role='button'],img")
+        selected = None
+        labels = []
+        for element in clickable:
+            label = " ".join([
+                element.text or "",
+                element.get_attribute("aria-label") or "",
+                element.get_attribute("alt") or "",
+                element.get_attribute("title") or ""
+            ]).strip()
+            if label:
+                labels.append(label[:80])
+            if re.search(r"\\b(baixar|download)\\b", label, re.I):
+                selected = element
+                if element.tag_name.lower() == "img":
+                    selected = element.find_element(By.XPATH, "..")
+                break
+
+        if selected is None:
+            raise ValueError("Botão oficial de download não localizado. Elementos visíveis: " + repr(labels[:30]))
+
+        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", selected)
+        time.sleep(1)
+        driver.execute_script("arguments[0].click();", selected)
+
+        deadline = time.time() + 180
+        while time.time() < deadline:
+            pending = list(download_dir.glob("*.crdownload")) + list(download_dir.glob("*.part"))
+            files = [p for p in download_dir.iterdir() if p.is_file() and p not in pending]
+            for candidate in files:
+                if candidate.stat().st_size >= 1024 * 1024:
+                    with candidate.open("rb") as stream:
+                        magic = stream.read(2)
+                    if magic == b"PK":
+                        if candidate.stat().st_size > MAX_APK_BYTES:
+                            raise ValueError("APK excede 250 MB")
+                        candidate.replace(APK)
+                        digest = hashlib.sha256(APK.read_bytes()).hexdigest()
+                        return {
+                            "saved": str(APK),
+                            "bytes": APK.stat().st_size,
+                            "sha256": digest,
+                            "final_url": driver.current_url,
+                            "source": "official Garena page button"
+                        }
+            time.sleep(2)
+
+        raise TimeoutError("O botão oficial foi acionado, mas nenhum arquivo APK ZIP terminou de baixar. Página final: " + driver.current_url)
+    finally:
+        if driver is not None:
+            driver.quit()
+
 
 def download_official():
     cookie_jar = urllib.request.HTTPCookieProcessor()
@@ -124,6 +222,10 @@ def download_official():
         except Exception as exc:
             temp.unlink(missing_ok=True)
             last_error = target + " -> " + str(exc)
+    try:
+        return download_official_via_browser()
+    except Exception as exc:
+        last_error += "; tentativa pelo botão oficial no navegador falhou: " + str(exc)
     raise ValueError("Não consegui obter o APK pelos links oficiais: " + last_error)
 
 def inspect_apk():
