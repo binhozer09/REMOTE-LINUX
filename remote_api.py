@@ -76,7 +76,7 @@ def download_official_via_browser():
             ]).strip()
             if label:
                 labels.append(label[:80])
-            if re.search(r"\\b(baixar|download)\\b", label, re.I):
+            if re.search(r"\b(baixar|download)\b", label, re.I):
                 selected = element
                 if element.tag_name.lower() == "img":
                     selected = element.find_element(By.XPATH, "..")
