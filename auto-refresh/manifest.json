@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Atualização automática - 2 minutos",
+  "name": "Atualização automática - 1 minuto",
   "version": "1.0.0",
-  "description": "Atualiza a página aberta automaticamente a cada 120 segundos.",
+  "description": "Atualiza a página aberta automaticamente a cada 60 segundos.",
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
