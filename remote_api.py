@@ -37,9 +37,17 @@ def download_official():
         candidates = []
         allowed = ("freefiremobile.com", "garena.com", "akamaihd.net", "akamaized.net", "wildflamestudio.com")
         def add_candidate(raw, base):
-            absolute = urljoin(base, html.unescape(raw))
-            host = (urlparse(absolute).hostname or "").lower()
-            if host.endswith(allowed) and absolute not in candidates and re.search(r"\.apk(?:$|[?#])|download|package", absolute, re.I):
+            raw = html.unescape(raw).strip()
+            if not (raw.startswith(("http://", "https://", "//", "/")) or re.search(r"(?i)https?%3a", raw)):
+                return
+            absolute = urljoin(base, raw)
+            parsed = urlparse(absolute)
+            host = (parsed.hostname or "").lower()
+            path = parsed.path.lower()
+            if path.endswith((".js", ".css", ".png", ".svg", ".ico")):
+                return
+            looks_download = path.endswith(".apk") or ".apk/" in path or path.rstrip("/").endswith("/download") or "/download/" in path
+            if host.endswith(allowed) and absolute not in candidates and looks_download:
                 candidates.append(absolute)
         for raw in raw_links:
             add_candidate(raw, page_url)
@@ -59,6 +67,7 @@ def download_official():
             except Exception as exc:
                 script_findings.append({"script": script_url, "error": str(exc)})
 
+        print("AUTO: análise dos scripts " + json.dumps(script_findings[:20], ensure_ascii=False), flush=True)
         if not candidates:
             raise ValueError(
                 "A página oficial retornou HTML, não o APK. "
