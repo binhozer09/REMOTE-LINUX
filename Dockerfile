@@ -7,7 +7,7 @@ ENV HOME=/home/remote
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     xfce4 xfce4-terminal dbus-x11 xvfb x11vnc novnc websockify nginx \
-    firefox-esr chromium ffmpeg libavcodec-extra \
+    firefox-esr chromium chromium-driver python3-selenium ffmpeg libavcodec-extra \
     gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
     fonts-liberation fonts-noto-core fonts-noto-color-emoji \
     gosu ca-certificates curl wget procps xterm python3 \
