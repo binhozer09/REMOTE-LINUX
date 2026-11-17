@@ -7,11 +7,13 @@ ENV HOME=/home/remote
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     xfce4 xfce4-terminal dbus-x11 xvfb x11vnc novnc websockify \
-    firefox-esr chromium fonts-liberation fonts-noto-core \
+    firefox-esr chromium ffmpeg libavcodec-extra \
+    gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
+    fonts-liberation fonts-noto-core fonts-noto-color-emoji \
     gosu ca-certificates curl wget procps xterm \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && useradd -m -s /bin/bash remote \
-    && mkdir -p /home/remote/.vnc \
+    && mkdir -p /home/remote/.vnc /home/remote/Desktop \
     && chown -R remote:remote /home/remote
 
 COPY start.sh /usr/local/bin/start-remote
