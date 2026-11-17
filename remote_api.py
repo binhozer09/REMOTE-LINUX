@@ -7,6 +7,7 @@ import urllib.request
 import re
 import threading
 import time
+import html
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse, parse_qs
 from pathlib import Path
@@ -19,30 +20,68 @@ AUTO_ANALYZE = os.environ.get("AUTO_ANALYZE_FREEFIRE", "0") == "1"
 STATE = {"auto_task": "waiting", "error": None}
 
 def download_official():
-    req = urllib.request.Request(OFFICIAL, headers={"User-Agent": "Mozilla/5.0"})
-    temp = APK.with_suffix(".download")
-    digest = hashlib.sha256()
-    total = 0
-    first = b""
+    req = urllib.request.Request(
+        OFFICIAL,
+        headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0 Safari/537.36", "Accept": "text/html,application/xhtml+xml,*/*"}
+    )
     with urllib.request.urlopen(req, timeout=90) as response:
-        final_url = response.geturl()
-        with temp.open("wb") as out:
-            while True:
-                chunk = response.read(1024 * 1024)
-                if not chunk:
-                    break
-                if not first:
-                    first = chunk[:2]
-                total += len(chunk)
-                if total > MAX_APK_BYTES:
-                    raise ValueError("APK excede 250 MB")
-                digest.update(chunk)
-                out.write(chunk)
-    if first != b"PK":
-        temp.unlink(missing_ok=True)
-        raise ValueError("A página oficial não retornou um APK ZIP; URL final: " + final_url)
-    temp.replace(APK)
-    return {"saved": str(APK), "bytes": total, "sha256": digest.hexdigest(), "final_url": final_url}
+        page = response.read(5 * 1024 * 1024 + 1)
+        page_url = response.geturl()
+        content_type = response.headers.get("Content-Type", "")
+    if page.startswith(b"PK"):
+        candidates = [page_url]
+    else:
+        source = page[:5 * 1024 * 1024].decode("utf-8", "replace")
+        raw_links = re.findall(r'''(?:href|src|data-href|data-url)\\s*=\\s*["']([^"']+)["']''', source, re.I)
+        raw_links += re.findall(r'''https?://[^"'\\s<>]+''', source, re.I)
+        candidates = []
+        for raw in raw_links:
+            candidate = urlparse(html.unescape(raw))
+            absolute = urllib.request.urljoin(page_url, html.unescape(raw))
+            host = (urlparse(absolute).hostname or "").lower()
+            if host.endswith(("freefiremobile.com", "garena.com", "akamaihd.net", "akamaized.net")) and absolute not in candidates:
+                if re.search(r"\\.apk(?:$|[?#])|download|package", absolute, re.I):
+                    candidates.append(absolute)
+        if not candidates:
+            raise ValueError(
+                "A página oficial retornou HTML, não o APK. "
+                + "Content-Type=" + content_type
+                + "; links encontrados=" + json.dumps(raw_links[:30], ensure_ascii=False)
+                + "; trecho=" + source[:500].replace("\\n", " ")
+            )
+
+    last_error = "nenhum link retornou APK ZIP"
+    for target in candidates[:10]:
+        temp = APK.with_suffix(".download")
+        digest = hashlib.sha256()
+        total = 0
+        first = b""
+        try:
+            download_req = urllib.request.Request(target, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(download_req, timeout=90) as response:
+                final_url = response.geturl()
+                with temp.open("wb") as out:
+                    while True:
+                        chunk = response.read(1024 * 1024)
+                        if not chunk:
+                            break
+                        if not first:
+                            first = chunk[:2]
+                        total += len(chunk)
+                        if total > MAX_APK_BYTES:
+                            raise ValueError("APK excede 250 MB")
+                        digest.update(chunk)
+                        out.write(chunk)
+            if first != b"PK":
+                temp.unlink(missing_ok=True)
+                last_error = "link não retornou ZIP: " + final_url
+                continue
+            temp.replace(APK)
+            return {"saved": str(APK), "bytes": total, "sha256": digest.hexdigest(), "final_url": final_url}
+        except Exception as exc:
+            temp.unlink(missing_ok=True)
+            last_error = str(exc)
+    raise ValueError("Não consegui obter o APK pelos links oficiais: " + last_error)
 
 def inspect_apk():
     if not APK.exists():
