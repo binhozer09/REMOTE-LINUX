@@ -9,7 +9,7 @@ import threading
 import time
 import html
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, urljoin
 from pathlib import Path
 
 TOKEN = os.environ.get("REMOTE_CONTROL_TOKEN", "")
@@ -32,22 +32,21 @@ def download_official():
         candidates = [page_url]
     else:
         source = page[:5 * 1024 * 1024].decode("utf-8", "replace")
-        raw_links = re.findall(r'''(?:href|src|data-href|data-url)\\s*=\\s*["']([^"']+)["']''', source, re.I)
-        raw_links += re.findall(r'''https?://[^"'\\s<>]+''', source, re.I)
+        raw_links = re.findall(r'''(?:href|src|data-href|data-url)\s*=\s*["']([^"']+)["']''', source, re.I)
+        raw_links += re.findall(r'''https?://[^"'\s<>]+''', source, re.I)
         candidates = []
         for raw in raw_links:
-            candidate = urlparse(html.unescape(raw))
-            absolute = urllib.request.urljoin(page_url, html.unescape(raw))
+            absolute = urljoin(page_url, html.unescape(raw))
             host = (urlparse(absolute).hostname or "").lower()
             if host.endswith(("freefiremobile.com", "garena.com", "akamaihd.net", "akamaized.net")) and absolute not in candidates:
-                if re.search(r"\\.apk(?:$|[?#])|download|package", absolute, re.I):
+                if re.search(r"\.apk(?:$|[?#])|download|package", absolute, re.I):
                     candidates.append(absolute)
         if not candidates:
             raise ValueError(
                 "A página oficial retornou HTML, não o APK. "
                 + "Content-Type=" + content_type
                 + "; links encontrados=" + json.dumps(raw_links[:30], ensure_ascii=False)
-                + "; trecho=" + source[:500].replace("\\n", " ")
+                + "; trecho=" + source[:500].replace("\n", " ")
             )
 
     last_error = "nenhum link retornou APK ZIP"
