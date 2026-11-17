@@ -36,18 +36,26 @@ WEB_PID=$!
 # Abre o YouTube automaticamente no desktop remoto. Defina YOUTUBE_URL no Railway
 # para escolher o vídeo/rádio; sem ela, abre a página inicial do YouTube.
 YOUTUBE_URL="${YOUTUBE_URL:-https://youtu.be/bWO1FNUTIao?is=IHQ1W9LWAd36Sf23}"
+YOUTUBE_TAB_COUNT=10
+CHROMIUM_URLS=()
+for tab in $(seq 1 "$YOUTUBE_TAB_COUNT"); do
+  CHROMIUM_URLS+=("$YOUTUBE_URL")
+done
 mkdir -p /home/remote/.config/chromium /home/remote/Downloads
 chown -R remote:remote /home/remote/.config/chromium /home/remote/Downloads
 gosu remote chromium \
   --no-sandbox \
   --disable-dev-shm-usage \
   --autoplay-policy=no-user-gesture-required \
+  --disable-background-timer-throttling \
+  --disable-renderer-backgrounding \
+  --disable-backgrounding-occluded-windows \
   --no-first-run \
   --no-default-browser-check \
   --user-data-dir=/home/remote/.config/chromium \
   --load-extension=/opt/auto-refresh \
   --start-maximized \
-  "$YOUTUBE_URL" >/tmp/chromium.log 2>&1 &
+  "${CHROMIUM_URLS[@]}" >/tmp/chromium.log 2>&1 &
 CHROMIUM_PID=$!
 sleep 2
 if pgrep -u remote -f 'chromium.*user-data-dir=/home/remote/.config/chromium' >/dev/null; then
@@ -57,7 +65,7 @@ else
   tail -n 30 /tmp/chromium.log || true
 fi
 
-echo "YouTube aberto automaticamente: $YOUTUBE_URL (atualização a cada 60 segundos)."
+echo "YouTube aberto automaticamente em $YOUTUBE_TAB_COUNT abas: $YOUTUBE_URL (cada aba atualiza a cada 60 segundos)."
 
 python3 /usr/local/bin/remote-api.py &
 API_PID=$!
