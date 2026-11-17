@@ -58,36 +58,60 @@ def download_official_via_browser():
             "downloadPath": str(download_dir)
         })
         official_page = OFFICIAL.replace("lang=en", "lang=pt-br")
-        driver.get(official_page)
+        driver.set_page_load_timeout(45)
+        try:
+            driver.get(official_page)
+        except Exception as exc:
+            print("AUTO: carregamento da página oficial terminou com aviso " + str(exc), flush=True)
         deadline = time.time() + 35
         while time.time() < deadline and driver.execute_script("return document.readyState") != "complete":
             time.sleep(0.5)
         time.sleep(5)
 
-        clickable = driver.find_elements(By.CSS_SELECTOR, "a,button,[role='button'],img")
-        selected = None
-        labels = []
-        for element in clickable:
-            label = " ".join([
-                element.text or "",
-                element.get_attribute("aria-label") or "",
-                element.get_attribute("alt") or "",
-                element.get_attribute("title") or ""
-            ]).strip()
-            if label:
-                labels.append(label[:80])
-            if re.search(r"\b(baixar|download)\b", label, re.I):
-                selected = element
-                if element.tag_name.lower() == "img":
-                    selected = element.find_element(By.XPATH, "..")
-                break
+        page_info = driver.execute_script("""
+            const body = document.body;
+            const elements = Array.from(document.querySelectorAll("a,button,[role='button'],[onclick],img"));
+            return {
+                title: document.title || "",
+                url: location.href,
+                body: body ? (body.innerText || "").slice(0, 1200) : "",
+                elements: elements.slice(0, 35).map(el => ({
+                    tag: el.tagName,
+                    text: (el.innerText || el.textContent || "").trim().slice(0, 100),
+                    alt: el.getAttribute("alt") || "",
+                    aria: el.getAttribute("aria-label") || "",
+                    href: el.getAttribute("href") || "",
+                    src: el.getAttribute("src") || "",
+                    cls: String(el.className || "").slice(0, 100)
+                })),
+                html: document.documentElement ? document.documentElement.outerHTML.slice(0, 1800) : ""
+            };
+        """)
+        print("AUTO: página oficial no Chromium " + json.dumps(page_info, ensure_ascii=False)[:5000], flush=True)
 
-        if selected is None:
-            raise ValueError("Botão oficial de download não localizado. Elementos visíveis: " + repr(labels[:30]))
-
-        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", selected)
-        time.sleep(1)
-        driver.execute_script("arguments[0].click();", selected)
+        click_result = driver.execute_script("""
+            const all = Array.from(document.querySelectorAll("body *"));
+            const visible = el => {
+                const r = el.getBoundingClientRect();
+                return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== "hidden";
+            };
+            const label = el => [
+                el.innerText || "", el.textContent || "",
+                el.getAttribute("aria-label") || "", el.getAttribute("alt") || "",
+                el.getAttribute("title") || "", el.getAttribute("href") || "",
+                el.getAttribute("src") || "", String(el.className || ""),
+                getComputedStyle(el).backgroundImage || ""
+            ].join(" ").toLowerCase();
+            const match = all.find(el => visible(el) && /(baixar|download|apk)/i.test(label(el)));
+            if (!match) return {clicked:false, body:(document.body?.innerText || "").slice(0,1000)};
+            const target = match.closest("a,button,[role='button'],[onclick]") || match;
+            target.scrollIntoView({block:"center"});
+            target.click();
+            return {clicked:true, tag:target.tagName, text:(target.innerText || target.textContent || "").trim().slice(0,120), href:target.getAttribute("href") || ""};
+        """)
+        print("AUTO: clique no botão oficial " + json.dumps(click_result, ensure_ascii=False), flush=True)
+        if not click_result.get("clicked"):
+            raise ValueError("Botão oficial não encontrado; diagnóstico: " + json.dumps(page_info, ensure_ascii=False)[:2500])
 
         deadline = time.time() + 180
         while time.time() < deadline:
