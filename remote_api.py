@@ -35,18 +35,37 @@ def download_official():
         raw_links = re.findall(r'''(?:href|src|data-href|data-url)\s*=\s*["']([^"']+)["']''', source, re.I)
         raw_links += re.findall(r'''https?://[^"'\s<>]+''', source, re.I)
         candidates = []
-        for raw in raw_links:
-            absolute = urljoin(page_url, html.unescape(raw))
+        allowed = ("freefiremobile.com", "garena.com", "akamaihd.net", "akamaized.net", "wildflamestudio.com")
+        def add_candidate(raw, base):
+            absolute = urljoin(base, html.unescape(raw))
             host = (urlparse(absolute).hostname or "").lower()
-            if host.endswith(("freefiremobile.com", "garena.com", "akamaihd.net", "akamaized.net")) and absolute not in candidates:
-                if re.search(r"\.apk(?:$|[?#])|download|package", absolute, re.I):
-                    candidates.append(absolute)
+            if host.endswith(allowed) and absolute not in candidates and re.search(r"\.apk(?:$|[?#])|download|package", absolute, re.I):
+                candidates.append(absolute)
+        for raw in raw_links:
+            add_candidate(raw, page_url)
+
+        script_urls = [urljoin(page_url, x) for x in re.findall(r'''<script[^>]+src=["']([^"']+)["']''', source, re.I)]
+        script_findings = []
+        for script_url in script_urls[:8]:
+            try:
+                script_req = urllib.request.Request(script_url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(script_req, timeout=30) as script_response:
+                    js = script_response.read(8 * 1024 * 1024).decode("utf-8", "replace")
+                strings = re.findall(r'''["']([^"']*(?:\.apk|download|package|android)[^"']*)["']''', js, re.I)
+                for value in strings[:100]:
+                    add_candidate(value, script_url)
+                for match in list(re.finditer(r"(?i)(apk|download|package|android)", js))[:25]:
+                    script_findings.append({"script": script_url, "match": js[max(0, match.start()-100):match.end()+160]})
+            except Exception as exc:
+                script_findings.append({"script": script_url, "error": str(exc)})
+
         if not candidates:
             raise ValueError(
                 "A página oficial retornou HTML, não o APK. "
                 + "Content-Type=" + content_type
-                + "; links encontrados=" + json.dumps(raw_links[:30], ensure_ascii=False)
-                + "; trecho=" + source[:500].replace("\n", " ")
+                + "; links=" + json.dumps(raw_links[:30], ensure_ascii=False)
+                + "; scripts=" + json.dumps(script_findings[:30], ensure_ascii=False)
+                + "; trecho=" + source[:400].replace("\n", " ")
             )
 
     last_error = "nenhum link retornou APK ZIP"
